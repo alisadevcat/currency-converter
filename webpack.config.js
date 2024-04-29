@@ -1,68 +1,64 @@
-const path = require("path");
-const HtmlWebpackPlugin = require("html-webpack-plugin");
-const webpack = require("webpack");
-var dotenv = require("dotenv").config({ path: __dirname + "/.env" });
-const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+/* eslint-disable @typescript-eslint/no-var-requires */
+const path = require('path');
+const { merge } = require('webpack-merge');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const { CleanWebpackPlugin } = require('clean-webpack-plugin');
+const EslingPlugin = require('eslint-webpack-plugin');
+const CopyPlugin = require('copy-webpack-plugin');
 
-module.exports = {
-  mode: "development",
-  entry: "./src/index.js",
-  output: {
-    filename: "bundle.js",
-    path: path.resolve(__dirname, "dist"),
-  },
-  devServer: {
-    static: path.resolve(__dirname, "dist"),
-    port: 8080,
-    hot: true,
-  },
+const baseConfig = {
+  entry: path.resolve(__dirname, './src/index.tsx'),
+  mode: 'development',
   module: {
     rules: [
+        { test: /\.([cm]?ts|tsx)$/,
+         use: "ts-loader", 
+         exclude: /node_modules/},
       {
-        // for any file with a suffix of js or jsx
-        test: /\.jsx?$/,
-        // ignore transpiling JavaScript from node_modules as it should be that state
-        exclude: /node_modules/,
-        // use the babel-loader for transpiling JavaScript to a suitable format
-        loader: "babel-loader",
-        options: {
-          // attach the presets to the loader (most projects use .babelrc file instead)
-          presets: ["@babel/preset-env", "@babel/preset-react"],
-        },
+        test: /\.(?:ico|gif|png|jpg|jpeg|svg)$/i,
+        type: 'asset/resource',
+      },
+      {
+        test: /\.(woff(2)?|eot|ttf|otf)$/i,
+        type: 'asset/resource',
+      },
+      {
+        test: /\.css$/i,
+        use: ['style-loader', 'css-loader'],
       },
       {
         test: /\.s[ac]ss$/i,
-        use: [
-          {
-            // Creates `style` nodes from JS strings
-            loader: "style-loader",
-          },
-          {
-            // Translates CSS into CommonJS
-            loader: "css-loader",
-          },
-          {
-            // Compiles Sass to CSS
-            loader: "sass-loader",
-          },
-        ],
-      },
-      {
-        test: /\.(png|jp(e*)g|svg|gif)$/,
-        use: [
-          {
-            loader: "file-loader",
-          },
-        ],
+        use: ['style-loader', 'css-loader', 'sass-loader'],
       },
     ],
   },
+  resolve: {
+    extensions: ['.tsx', '.ts', '.js'],
+  },
+  output: {
+    filename: 'index.js',
+    path: path.resolve(__dirname, '../dist'),
+    assetModuleFilename: 'assets/[name][ext]',
+  },
   plugins: [
     new HtmlWebpackPlugin({
-      template: path.resolve(__dirname, "src", "index.html"),
+      template: path.resolve(__dirname, './src/index.html'),
+      filename: 'index.html',
     }),
-    new webpack.DefinePlugin({
-      "process.env.DOTENV": JSON.stringify(dotenv.parsed),
+    new CleanWebpackPlugin(),
+    new EslingPlugin({ extensions: 'ts' }),
+    new CopyPlugin({
+      patterns: [
+        { from: './src/assets', to: './../dist/assets' },
+        // { from: './src/db', to: './../dist/db' },
+      ],
     }),
   ],
+};
+
+module.exports = ({ mode }) => {
+  const isProductionMode = mode === 'prod';
+  const envConfig = isProductionMode ? require('./webpack.prod.config') : require('./webpack.dev.config');
+
+  return merge(baseConfig, envConfig);
 };
